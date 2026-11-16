@@ -1,0 +1,302 @@
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true"><i class="d0"></i><i class="d1"></i></span>
+    <span class="brand-name">moviePicker<em>ForTwo</em></span>
+  </div>
+
+  <div class="duo">
+    @for (slot of slots; track slot) {
+      <div class="who" [class.slot-0]="slot === 0" [class.slot-1]="slot === 1">
+        <div class="who-row">
+          <span class="dot" aria-hidden="true"></span>
+          <input class="who-input" type="text" spellcheck="false" autocomplete="off"
+                 [placeholder]="slot === 0 ? 'Pseudo Letterboxd 1' : 'Pseudo Letterboxd 2'"
+                 [ngModel]="lb.profiles[slot]().username"
+                 (ngModelChange)="onUsername(slot, $event)">
+          <label class="icon-btn" title="Importer l'archive d'export Letterboxd (.zip)">
+            <input type="file" accept=".zip,application/zip" hidden #archive (change)="onArchive(slot, archive)">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 3v12m0 0-4-4m4 4 4-4M4 17v3h16v-3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </label>
+          @if (lb.hasData(slot)) {
+            <button class="icon-btn" title="Oublier les films vus de ce profil" (click)="clearSlot(slot)">×</button>
+          }
+        </div>
+        <div class="who-status">{{ slotMessages()[slot] || slotStatus(slot) }}</div>
+      </div>
+
+      @if (slot === 0) {
+        <button class="check-btn" [class.on]="showSeen()" [disabled]="checking()" (click)="checkSeen()">
+          @if (checking()) {
+            <span class="spinner"></span> Vérification…
+          } @else if (showSeen()) {
+            Masquer les coches
+          } @else {
+            Qui a vu&nbsp;?
+          }
+        </button>
+      }
+    }
+  </div>
+
+  <button class="icon-btn settings" title="Réglages" (click)="openSettings()">
+    <svg viewBox="0 0 24 24" width="18" height="18"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>
+  </button>
+</header>
+
+@if (checkMessage()) {
+  <div class="banner">{{ checkMessage() }}</div>
+}
+
+<div class="layout" [class.filters-open]="showFilters()">
+  <aside class="filters" [class.open]="showFilters()">
+    <div class="filters-head">
+      <h2>Filtres</h2>
+      @if (activeFilterCount() > 0) {
+        <button class="link-btn" (click)="resetFilters()">Réinitialiser</button>
+      }
+      <button class="icon-btn filters-close" aria-label="Fermer les filtres" (click)="showFilters.set(false)">×</button>
+    </div>
+
+    <section class="field">
+      <label for="sort">Trier par</label>
+      <select id="sort" [ngModel]="filters().sortBy" (ngModelChange)="patchFilters({ sortBy: $event })"
+              [disabled]="!!filters().query.trim()">
+        @for (s of sorts; track s.value) { <option [value]="s.value">{{ s.label }}</option> }
+      </select>
+    </section>
+
+    @if (showSeen()) {
+      <section class="field">
+        <label for="seen">Films vus</label>
+        <select id="seen" [ngModel]="seenFilter()" (ngModelChange)="setSeenFilter($event)">
+          <option value="all">Tout afficher</option>
+          <option value="hideAny">Vus par personne</option>
+          <option value="hideBoth">Masquer ceux vus par les deux</option>
+          <option value="hide0">Pas vus par {{ displayName(0) }}</option>
+          <option value="hide1">Pas vus par {{ displayName(1) }}</option>
+          <option value="onlyBoth">Vus par les deux</option>
+        </select>
+      </section>
+    }
+
+    <section class="field">
+      <span class="label">Genres <small>clic : inclure, re-clic : exclure</small></span>
+      <div class="chips">
+        @for (g of genres(); track g.id) {
+          <button class="chip" [attr.data-state]="genreState(g.id)" (click)="cycleGenre(g.id)">
+            @if (genreState(g.id) === 'exclude') { <span aria-hidden="true">−</span> }
+            {{ g.name }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <section class="field two">
+      <span class="label">Années</span>
+      <input type="number" min="1900" [max]="currentYear" placeholder="De"
+             [ngModel]="filters().yearFrom" (ngModelChange)="patchFilters({ yearFrom: numberOrNull($event) }, 500)">
+      <input type="number" min="1900" [max]="currentYear" placeholder="À"
+             [ngModel]="filters().yearTo" (ngModelChange)="patchFilters({ yearTo: numberOrNull($event) }, 500)">
+    </section>
+
+    <section class="field">
+      <label for="rating">Note TMDB min. <output>{{ filters().minRating ? (filters().minRating | number:'1.1-1') : '–' }}</output></label>
+      <input id="rating" type="range" min="0" max="9" step="0.5"
+             [ngModel]="filters().minRating" (ngModelChange)="patchFilters({ minRating: +$event }, 300)">
+    </section>
+
+    <section class="field">
+      <label for="votes">Votes min. <output>{{ filters().minVotes }}</output></label>
+      <input id="votes" type="range" min="0" max="5000" step="50"
+             [ngModel]="filters().minVotes" (ngModelChange)="patchFilters({ minVotes: +$event }, 300)">
+    </section>
+
+    <section class="field two">
+      <span class="label">Durée (min)</span>
+      <input type="number" min="0" step="10" placeholder="Min"
+             [ngModel]="filters().runtimeMin" (ngModelChange)="patchFilters({ runtimeMin: numberOrNull($event) }, 500)">
+      <input type="number" min="0" step="10" placeholder="Max"
+             [ngModel]="filters().runtimeMax" (ngModelChange)="patchFilters({ runtimeMax: numberOrNull($event) }, 500)">
+    </section>
+
+    <section class="field">
+      <label for="lang">Langue originale</label>
+      <select id="lang" [ngModel]="filters().language" (ngModelChange)="patchFilters({ language: $event })">
+        @for (l of languages; track l.code) { <option [value]="l.code">{{ l.label }}</option> }
+      </select>
+    </section>
+
+    @if (providers().length) {
+      <section class="field">
+        <span class="label">Dispo en streaming (France)</span>
+        <div class="providers">
+          @for (p of providers(); track p.provider_id) {
+            <button class="provider" [class.on]="filters().providers.includes(p.provider_id)"
+                    [title]="p.provider_name" (click)="toggleProvider(p.provider_id)">
+              <img [src]="tmdb.logoUrl(p.logo_path)" [alt]="p.provider_name" loading="lazy">
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+    <p class="attribution">
+      <img src="tmdb-logo.svg" alt="TMDB" height="12">
+      Données films : TMDB. Ce produit utilise l'API TMDB sans être approuvé ni certifié par TMDB.
+    </p>
+  </aside>
+
+  <main class="results">
+    <div class="toolbar">
+      <button class="filters-toggle" (click)="showFilters.set(!showFilters())">
+        Filtres @if (activeFilterCount()) { <span class="badge">{{ activeFilterCount() }}</span> }
+      </button>
+      <div class="search">
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <input type="search" placeholder="Chercher un titre…"
+               [ngModel]="filters().query" (ngModelChange)="patchFilters({ query: $event }, 400)">
+      </div>
+      <div class="count">
+        @if (seenCounts(); as c) {
+          <span class="tally slot-0" [title]="displayName(0)"><span class="dot"></span>{{ c.a }}</span>
+          <span class="tally slot-1" [title]="displayName(1)"><span class="dot"></span>{{ c.b }}</span>
+          <span class="tally both" title="Vus par les deux">les deux&nbsp;: {{ c.both }}</span>
+          <span class="sep">/ {{ c.total }} chargés</span>
+        } @else if (totalResults()) {
+          {{ totalResults() | number }} films
+        }
+      </div>
+    </div>
+
+    @if (error()) {
+      <div class="banner error">{{ error() }} <button class="link-btn" (click)="reload()">Réessayer</button></div>
+    }
+
+    <div class="grid">
+      @for (m of visibleMovies(); track m.id) {
+        <button class="card" (click)="open(m)" [attr.aria-label]="m.title">
+          <div class="poster">
+            @if (m.poster_path) {
+              <img [src]="tmdb.posterUrl(m.poster_path)" [alt]="m.title" loading="lazy">
+            } @else {
+              <div class="no-poster">{{ m.title }}</div>
+            }
+            @if (showSeen()) {
+              @if (isSeen(0, m)) {
+                <span class="tick slot-0" [title]="'Vu par ' + displayName(0)">
+                  <svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+              }
+              @if (isSeen(1, m)) {
+                <span class="tick slot-1" [title]="'Vu par ' + displayName(1)">
+                  <svg viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span>
+              }
+            }
+            @if (m.vote_average) {
+              <span class="score">{{ m.vote_average | number:'1.1-1' }}</span>
+            }
+          </div>
+          <div class="meta">
+            <span class="title">{{ m.title }}</span>
+            <span class="year">{{ year(m) }}</span>
+          </div>
+        </button>
+      }
+    </div>
+
+    @if (!loading() && !error() && page() > 0 && visibleMovies().length === 0) {
+      <div class="empty">
+        @if (movies().length) {
+          Tous les films chargés sont masqués par le filtre « Films vus ».
+        } @else {
+          Aucun film ne correspond à ces filtres.
+        }
+      </div>
+    }
+
+    <div #sentinel class="sentinel">
+      @if (loading()) { <span class="spinner"></span> }
+      @else if (page() > 0 && page() >= totalPages() && movies().length) { <span class="end">Fin des résultats</span> }
+    </div>
+  </main>
+</div>
+
+@if (selected(); as m) {
+  <div class="overlay" (click)="selected.set(null)">
+    <article class="sheet" (click)="$event.stopPropagation()">
+      <button class="icon-btn close" (click)="selected.set(null)" aria-label="Fermer">×</button>
+      @if (m.poster_path) { <img class="sheet-poster" [src]="tmdb.posterUrl(m.poster_path, 'w500')" [alt]="m.title"> }
+      <div class="sheet-body">
+        <h2>{{ m.title }} <span class="year">{{ year(m) }}</span></h2>
+        @if (m.original_title !== m.title) { <p class="original">{{ m.original_title }}</p> }
+        <p class="genres">{{ genreNames(m) }} · ★ {{ m.vote_average | number:'1.1-1' }} ({{ m.vote_count | number }} votes)</p>
+        @if (showSeen()) {
+          <p class="seen-line">
+            @for (slot of slots; track slot) {
+              <span class="seen-pill" [class.slot-0]="slot === 0" [class.slot-1]="slot === 1" [class.no]="!isSeen(slot, m)">
+                <span class="dot"></span>{{ displayName(slot) }} : {{ isSeen(slot, m) ? 'vu' : 'pas vu' }}
+              </span>
+            }
+          </p>
+        }
+        <p class="overview">{{ m.overview || 'Pas de résumé en français.' }}</p>
+        <div class="links">
+          <a [href]="'https://letterboxd.com/tmdb/' + m.id" target="_blank" rel="noopener">Letterboxd</a>
+          <a [href]="'https://www.themoviedb.org/movie/' + m.id" target="_blank" rel="noopener">TMDB</a>
+          @if (selectedImdb()) { <a [href]="selectedImdb()" target="_blank" rel="noopener">IMDb</a> }
+        </div>
+      </div>
+    </article>
+  </div>
+}
+
+@if (showTokenDialog()) {
+  <div class="overlay">
+    <form class="dialog" (submit)="$event.preventDefault(); submitToken()">
+      <h2>Token TMDB</h2>
+      <p>Colle ton <strong>jeton d'accès en lecture</strong> (API Read Access Token) depuis
+        <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org → Paramètres → API</a>.
+        Il reste dans ce navigateur.</p>
+      <input type="password" placeholder="eyJhbGciOiJIUzI1NiJ9…" autocomplete="off"
+             [ngModel]="tokenInput()" (ngModelChange)="tokenInput.set($event)" name="token">
+      @if (tokenError()) { <p class="form-error">{{ tokenError() }}</p> }
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Valider</button>
+      </div>
+    </form>
+  </div>
+}
+
+@if (showSettings()) {
+  <div class="overlay" (click)="showSettings.set(false)">
+    <form class="dialog" (click)="$event.stopPropagation()" (submit)="$event.preventDefault(); saveSettings()">
+      <h2>Réglages</h2>
+
+      <h3>Films vus sur Letterboxd</h3>
+      <p>Deux sources, comme dans MFLH2 :</p>
+      <ul>
+        <li><strong>L'archive d'export</strong>, tout l'historique : sur letterboxd.com,
+          <em>Settings → Data → Export your data</em>, puis dépose le .zip avec le bouton
+          <span class="inline-icon">↓</span> à côté du pseudo.</li>
+        <li><strong>Le flux RSS</strong>, les ~50 derniers films du journal, relu à chaque « Qui a vu ? ».
+          Letterboxd bloque la lecture directe depuis le navigateur : il faut un petit proxy
+          (le Cloudflare Worker fourni dans <code>proxy/</code> du dépôt).</li>
+      </ul>
+      <label for="proxy">URL du proxy RSS</label>
+      <input id="proxy" type="url" placeholder="https://letterboxd-rss.xxx.workers.dev"
+             [ngModel]="proxyInput()" (ngModelChange)="proxyInput.set($event)" name="proxy">
+      @if (proxyInput().trim() && !proxyInput().trim().startsWith('https://')) {
+        <p class="form-error">L'URL doit commencer par https://</p>
+      }
+
+      <h3>TMDB</h3>
+      <button type="button" class="link-btn" (click)="changeToken()">Changer de token</button>
+
+      <div class="dialog-actions">
+        <button type="button" (click)="showSettings.set(false)">Annuler</button>
+        <button type="submit" class="primary">Enregistrer</button>
+      </div>
+    </form>
+  </div>
+}
